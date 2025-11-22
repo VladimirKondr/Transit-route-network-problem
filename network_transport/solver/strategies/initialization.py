@@ -103,14 +103,17 @@ class PhaseOneInitializer(InitializationStrategy):
         return self._extract_original_solution(graph, final_state)
     
     def _create_auxiliary_graph(self, graph: Graph) -> Graph:
+        """
+        Create auxiliary graph for Phase 1.
+        """
         aux_graph = Graph()
         
         aux_graph.add_node(self.ROOT_NODE_ID, balance=0.0)
         
-        for node_id, node in graph.nodes.items():
+        for node_id, node in sorted(graph.nodes.items()):
             aux_graph.add_node(node_id, balance=node.balance)
         
-        for _, edge in graph.edges.items():
+        for _, edge in sorted(graph.edges.items()):
             aux_graph.add_edge(
                 edge.from_node,
                 edge.to_node,
@@ -119,7 +122,7 @@ class PhaseOneInitializer(InitializationStrategy):
             )
         
         # Add edges to all nodes (from node if node is source)
-        for node_id, node in graph.nodes.items():
+        for node_id, node in sorted(graph.nodes.items()):
             if node.balance > EPSILON:
                 aux_graph.add_edge(
                     node_id,
@@ -138,13 +141,16 @@ class PhaseOneInitializer(InitializationStrategy):
         return aux_graph
     
     def _setup_initial_state(self, graph: Graph) -> Tuple[Set[Tuple[str, str]], Dict[Tuple[str, str], float]]:
+        """
+        Set up initial basis and flows for Phase 1.
+        """
         basis: Set[Tuple[str, str]] = set()
         flows: Dict[Tuple[str, str], float] = {}
         
-        for edge_id in graph.edges.keys():
+        for edge_id in sorted(graph.edges.keys()):
             flows[edge_id] = 0.0
             
-        for node_id, node in graph.nodes.items():
+        for node_id, node in sorted(graph.nodes.items()):
             if node.balance > EPSILON:
                 edge_id = (node_id, self.ROOT_NODE_ID)
                 basis.add(edge_id)

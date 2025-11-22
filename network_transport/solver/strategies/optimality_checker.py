@@ -27,10 +27,12 @@ class OptimalityChecker(OptimalityCheckStrategy):
         non_basis_edges: Set[Tuple[str, str]],
         potentials: Dict[str, float]
     ) -> Dict[Tuple[str, str], float]:
-        """Calculate reduced costs for all non-basis edges."""
+        """
+        Calculate reduced costs for all non-basis edges.
+        """
         deltas: Dict[Tuple[str, str], float] = {}
         
-        for edge_id in non_basis_edges:
+        for edge_id in sorted(non_basis_edges):
             edge = graph.get_edge(*edge_id)
             assert edge is not None
 
@@ -49,10 +51,12 @@ class OptimalityChecker(OptimalityCheckStrategy):
         deltas: Dict[Tuple[str, str], float],
         flows: Dict[Tuple[str, str], float]
     ) -> List[Tuple[float, Tuple[str, str], str]]:
-        """Identify edges violating optimality conditions and improvement directions."""
+        """
+        Identify edges violating optimality conditions and improvement directions.
+        """
         violations: List[Tuple[float, Tuple[str, str], str]] = []
         
-        for edge_id in non_basis_edges:
+        for edge_id in sorted(non_basis_edges):
             violation = self._check_single_violation(graph, edge_id, deltas, flows)
             if violation is not None:
                 violations.append(violation)
@@ -114,7 +118,9 @@ class OptimalityChecker(OptimalityCheckStrategy):
         self,
         violations: List[Tuple[float, Tuple[str, str], str]]
     ) -> Tuple[Tuple[str, str], str, float]:
-        """Select entering variable using steepest-edge rule."""
-        violations.sort(key=lambda x: x[0], reverse=True)
+        """
+        Select entering variable using steepest-edge rule.
+        """
+        violations.sort(key=lambda x: (-x[0], x[1][0], x[1][1]))
         score, edge_id, direction = violations[0]
         return edge_id, direction, score
