@@ -1,4 +1,7 @@
-from network_transport import Graph, run_interactive_demo
+from network_transport import Graph, TransportSolver, SolverController
+from network_transport.solver.strategies.initialization import PrebuiltInitializer
+from network_transport.ui import InteractiveSession, LayoutContext
+from typing import Set, Tuple, Dict
 
 
 def create_capacitated_network() -> Graph:
@@ -57,15 +60,60 @@ def print_network_info(graph: Graph) -> None:
     print()
 
 
+def create_initial_plan() -> Tuple[Set[Tuple[str, str]], Dict[Tuple[str, str], float]]:
+    basis_edges: Set[Tuple[str, str]] = {
+        ("1", "2"),
+        ("1", "5"),
+        ("3", "4"),
+        ("5", "8"),
+        ("6", "8"),
+        ("7", "3"),
+        ("8", "3"),
+    }
+    
+    flows: Dict[Tuple[str, str], float] = {
+        ("1", "2"): 18.0,
+        ("1", "5"): 22.0,
+        ("3", "4"): 40.0,
+        ("5", "8"): 2.0,
+        ("6", "8"): 23.0,
+        ("7", "3"): 40.0,
+        ("8", "3"): 5.0,
+        ("2", "3"): 45.0,
+        ("2", "7"): 40.0,
+        ("8", "4"): 20.0,
+    }
+    
+    return basis_edges, flows
+
+
 def main() -> None:
-    """Run interactive solution using utility function."""
+    """Run interactive solution with predefined initial plan."""
+    print("\n" + "=" * 70)
+    print("Network Planning Problem (Capacitated) - With Initial Plan")
+    print("=" * 70)
+    print()
+    
     graph = create_capacitated_network()
     
-    run_interactive_demo(
-        graph,
-        title="Network Planning Problem (Capacitated)",
-        info_printer=print_network_info
-    )
+    print_network_info(graph)
+    
+    print("Initial Plan:")
+    print("  Basis edges: 7")
+    print("  Non-basis (saturated): 3")
+    print()
+    
+    basis_edges, flows = create_initial_plan()
+    
+    initialization_strategy = PrebuiltInitializer(basis_edges, flows)
+    solver = TransportSolver(graph=graph, initialization_strategy=initialization_strategy)
+    controller = SolverController(graph, solver=solver)
+    
+    layout = LayoutContext()
+    session = InteractiveSession(graph, layout, controller, show_console_in_sidebar=True)
+    
+    print("Starting interactive solver...")
+    session.setup_and_run()
 
 
 if __name__ == "__main__":
