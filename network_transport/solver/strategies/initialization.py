@@ -30,6 +30,22 @@ class DisjointSet:
         self.parent[root_x] = root_y
         return True
 
+class PrebuiltInitializer(InitializationStrategy):
+    """Mock-initializer for setting a constant initial basis"""
+    
+    def __init__(self, basis: Set[Tuple[str, str]], flows: Dict[Tuple[str, str], float]):
+        self.basis = basis
+        self.flows = flows
+            
+    def execute(self, graph: Graph) -> BasisResult:
+        all_edges = set(graph.edges.keys())
+        non_basis = all_edges - self.basis
+        return BasisResult(
+            basis_edges=self.basis,
+            non_basis_edges=non_basis,
+            flows=self.flows
+        )
+
 
 class PhaseOneInitializer(InitializationStrategy):
     """
@@ -74,20 +90,6 @@ class PhaseOneInitializer(InitializationStrategy):
             factory = TransportSolver
         else:
             factory = self.solver_factory
-
-        class PrebuiltInitializer(InitializationStrategy):
-            def __init__(self, basis: Set[Tuple[str, str]], flows: Dict[Tuple[str, str], float]):
-                self.basis = basis
-                self.flows = flows
-            
-            def execute(self, graph: Graph) -> BasisResult:
-                all_edges = set(graph.edges.keys())
-                non_basis = all_edges - self.basis
-                return BasisResult(
-                    basis_edges=self.basis,
-                    non_basis_edges=non_basis,
-                    flows=self.flows
-                )
 
         solver = factory(
             aux_graph,
