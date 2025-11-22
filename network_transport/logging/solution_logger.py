@@ -166,11 +166,10 @@ class SolutionLogger:
             potential = state.potentials[node_id]
             self._print(f"   u[{node_id}] = {potential:.1f}")
     
-    def _log_optimality_check(self, state: SolutionState) -> None:
+    def _print_deltas(self, state: SolutionState) -> List[Tuple[str, str]]:
+        """Print reduced costs and return list of violations."""
         assert state.flows is not None
         assert state.deltas is not None
-        
-        self._print(f"\nReduced costs (Δ) for non-basis edges:")
         
         violations: List[Tuple[str, str]] = []
         for edge_id, delta in sorted(state.deltas.items()):
@@ -199,6 +198,12 @@ class SolutionLogger:
             
             if violates:
                 violations.append(edge_id)
+        
+        return violations
+    
+    def _log_optimality_check(self, state: SolutionState) -> None:
+        self._print(f"\nReduced costs (Δ) for non-basis edges:")
+        violations = self._print_deltas(state)
         
         if violations:
             assert state.entering_edge is not None
@@ -250,6 +255,14 @@ class SolutionLogger:
         assert state.flows is not None
 
         self._print(f"\nOPTIMAL SOLUTION FOUND")
+        
+        # Show optimality conditions (all deltas satisfied)
+        if state.deltas is not None:
+            self._print(f"\nReduced costs (Δ) for non-basis edges:")
+            violations = self._print_deltas(state)
+            if not violations:
+                self._print(f"\nAll optimality conditions satisfied")
+        
         self._print(f"\nFinal flows:")
         for edge_id, flow in sorted(state.flows.items()):
             if flow > 0:
@@ -257,8 +270,8 @@ class SolutionLogger:
                 assert edge is not None
                 
                 cost_total = flow * edge.cost
-                print(f"   {edge.from_node} → {edge.to_node}: "
-                      f"x={flow:.0f}, c={edge.cost:.0f}, total_cost={cost_total:.0f}")
+                self._print(f"   {edge.from_node} → {edge.to_node}: "
+                            f"x={flow:.0f}, c={edge.cost:.0f}, total_cost={cost_total:.0f}")
         
         self._print(f"\nMinimum cost: Z = {state.objective_value:.2f}")
         self._print(f"Iterations: {state.iteration}")
