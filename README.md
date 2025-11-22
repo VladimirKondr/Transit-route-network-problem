@@ -34,16 +34,6 @@ The perfomance wasn't the goal, the goal was to write comprehensive, supportable
 pip install matplotlib numpy
 ```
 
-### Web Interface (Optional)
-
-For web-based visualization:
-
-```bash
-python3 task_1_web.py
-```
-
-Open browser at `http://localhost:8988` for interactive web interface.
-
 ## Quick Start
 
 ```python
@@ -58,6 +48,17 @@ graph.add_edge("Source1", "Sink1", cost=10, capacity=100)
 # Run interactive solver
 run_interactive_demo(graph, "Transport Problem")
 ```
+
+### Web Interface (Optional)
+
+For web-based visualization:
+
+```bash
+python3 task_1_web.py
+```
+
+Open browser at `http://localhost:8988` for interactive web interface.
+
 
 ## Usage Patterns
 
