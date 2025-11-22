@@ -179,7 +179,7 @@ Complete API documentation available in [API.md](API.md).
 
 ## Requirements
 
-- Python 3.10+
+- Python 3.12+
 - matplotlib >= 3.10.7
 - numpy >= 2.3.5
 
