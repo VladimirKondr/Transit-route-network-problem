@@ -139,18 +139,39 @@ while controller.can_go_next():
     print(f"Step {current.iteration}: {current.description}")
 ```
 
+### Two-Phase Visualization
+
+Interactive demonstration of both phases of the network simplex algorithm:
+
+```python
+# Run task_1_two_phase.py to see:
+# - Phase 1: Find initial feasible solution using auxiliary problem
+# - Phase 2: Optimize the solution for minimum cost
+
+python task_1_two_phase.py
+```
+
+This demonstrates:
+- Auxiliary graph construction with artificial root node
+- Minimization of artificial flow to find initial feasible basis
+- Extraction of feasible basis for the original problem
+- Optimization to minimum cost starting from feasible basis
+
 ## Examples
 
-Two demonstration problems are included:
+Three demonstration problems are included:
 
 **task_1.py** - Railway cargo transportation with 7 stations and 12 routes. Demonstrates basic uncapacitated transport optimization.
 
 **task_2.py** - Capacitated network planning with 8 nodes and 15 edges. Shows handling of upper bound constraints on edge flows.
 
+**task_1_two_phase.py** - Interactive two-phase demonstration showing both Phase 1 (finding feasible solution) and Phase 2 (optimization) separately.
+
 Run examples:
 ```bash
 python task_1.py
 python task_2.py
+python task_1_two_phase.py
 ```
 
 ## Architecture

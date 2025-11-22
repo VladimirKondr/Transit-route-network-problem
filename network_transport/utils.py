@@ -1,5 +1,3 @@
-"""Utility functions for running network transport demonstrations."""
-
 from typing import Optional, Callable
 from .models.graph import Graph
 from .ui import InteractiveSession, LayoutContext
