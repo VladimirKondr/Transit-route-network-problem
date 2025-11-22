@@ -3,7 +3,7 @@ matplotlib.use('WebAgg')
 
 matplotlib.rcParams['webagg.open_in_browser'] = True
 matplotlib.rcParams['webagg.port'] = 8988
-matplotlib.rcParams['webagg.address'] = '127.0.0.1'
+matplotlib.rcParams['webagg.address'] = '0.0.0.0'
 
 matplotlib.rcParams['figure.dpi'] = 80
 matplotlib.rcParams['savefig.dpi'] = 100
