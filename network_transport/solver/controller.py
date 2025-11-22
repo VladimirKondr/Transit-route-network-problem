@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import List, Optional
 from ..models.graph import Graph
 from .solver_base import TransportSolverBase
@@ -24,7 +25,7 @@ class SolverController:
             solver: Optional solver instance (creates default TransportSolver if None)
         """
         self.graph = graph
-        self._initial_solver = solver
+        self._initial_solver = deepcopy(solver)
         self.solver = solver or TransportSolver(graph)
         self.states: List[SolutionState] = []
         self.current_step: int = -1  # -1 = not started
@@ -102,7 +103,7 @@ class SolverController:
         self.states.clear()
         self.current_step = -1
         
-        self.solver = self._initial_solver or TransportSolver(self.graph)
+        self.solver = deepcopy(self._initial_solver) or TransportSolver(self.graph)
     
     def _execute_next_step(self) -> None:
         """Execute the next logical step of the algorithm."""
