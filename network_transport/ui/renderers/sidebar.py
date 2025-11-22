@@ -15,7 +15,7 @@ class SidebarRenderer:
         self.state = None
         self.current_step_log: str = ""
         self.show_console_log = True
-        self.max_line_width = 55  # Max characters per line for wrapping
+        self.max_line_width = 50  # Max characters per line for wrapping
     
     def add_console_message(self, message: str) -> None:
         """Set current step log (replaces previous)."""
@@ -28,6 +28,41 @@ class SidebarRenderer:
     def set_show_console_log(self, show: bool) -> None:
         """Toggle console log visibility."""
         self.show_console_log = show
+    
+    def _calculate_adaptive_fontsize(self) -> float:
+        """Calculate adaptive font size based on sidebar dimensions."""
+        try:
+            # Get figure and axes dimensions
+            fig = self.ax.get_figure()
+            if fig is None:
+                return 8.0  # Default size
+            
+            # Get figure size in inches
+            fig_width, fig_height = fig.get_size_inches()
+            
+            # Get axes position relative to figure (left, bottom, width, height)
+            pos = self.ax.get_position()
+            sidebar_width_inch = pos.width * fig_width
+            sidebar_height_inch = pos.height * fig_height
+            
+            # Calculate font size based on dimensions
+            # Base formula: font size proportional to sidebar area
+            # Typical sidebar: 2-3 inches wide, 6-8 inches tall
+            base_size = (sidebar_width_inch * 3.0 + sidebar_height_inch * 0.9) / 2
+            
+            # Clamp between reasonable values
+            return max(6.0, min(base_size, 11.0))
+        except Exception:
+            # Fallback to default if anything goes wrong
+            return 8.0
+    
+    def _calculate_adaptive_line_width(self) -> int:
+        """Calculate adaptive line width based on font size."""
+        fontsize = self._calculate_adaptive_fontsize()
+        # Smaller font = more characters fit
+        # Formula: inversely proportional to font size
+        line_width = int(400 / fontsize)
+        return max(40, min(line_width, 60))
     
     def _wrap_text(self, text: str, max_width: int) -> str:
         """Wrap text to fit within max width."""
@@ -70,12 +105,16 @@ class SidebarRenderer:
         self.ax.add_patch(bg_rect)
         
         if self.show_console_log and self.current_step_log:
+            # Calculate adaptive font size and line width
+            fontsize = self._calculate_adaptive_fontsize()
+            line_width = self._calculate_adaptive_line_width()
+            
             # Show console log with text wrapping
-            wrapped_text = self._wrap_text(self.current_step_log, self.max_line_width)
+            wrapped_text = self._wrap_text(self.current_step_log, line_width)
             self.ax.text( # pyright: ignore[reportUnknownMemberType]
                 0.02, 0.98,
                 wrapped_text,
-                ha='left', va='top', fontsize=6, family='monospace',
+                ha='left', va='top', fontsize=fontsize, family='monospace',
                 transform=self.ax.transAxes
             )
         else:
