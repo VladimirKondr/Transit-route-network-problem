@@ -17,7 +17,8 @@ class InteractiveSession:
         self,
         graph: Graph,
         layout: Optional[LayoutContext] = None,
-        controller: Optional[SolverController] = None
+        controller: Optional[SolverController] = None,
+        show_console_in_sidebar: bool = True
     ):
         """
         Initialize interactive session.
@@ -26,26 +27,32 @@ class InteractiveSession:
             graph: Network graph with domain model
             layout: Optional layout context (creates new if None)
             controller: Optional solver controller (creates new if None)
+            show_console_in_sidebar: If True, show console log in sidebar
         """
         self.graph = graph
         self.layout = layout or LayoutContext()
         self.controller = controller or SolverController(graph)
+        self.show_console_in_sidebar = show_console_in_sidebar
         
-        # Create coordinator components
-        self.logger = SolutionLogger(graph)
+        self.logger = SolutionLogger(graph, output_callback=self._on_console_output if show_console_in_sidebar else None)
         self.visualizer = GraphVisualizer(graph, self.layout)
         
-        # UI components (buttons)
         self._btn_prev = None
         self._btn_next = None
         self._btn_solve_all = None
         self._btn_reset = None
+        self._btn_toggle_console = None
+    
+    def _on_console_output(self, text: str) -> None:
+        """Callback for console output to display in sidebar."""
+        if self.visualizer._sidebar_renderer:
+            self.visualizer._sidebar_renderer.add_console_message(text)
     
     def setup_and_run(self) -> None:
         """Main entry point: setup layout and run interactive session."""
         # Step 1: Ensure layout is ready
         if not self.layout.is_layout_fixed():
-            print("[SETUP] Layout not configured. Starting interactive layout setup...")
+            self.logger.log_message("[SETUP] Layout not configured. Starting interactive layout setup...")
             # Setup interactive layout with callback to transition to solver mode
             self.visualizer.setup_interactive_layout(done_callback=self._on_layout_done)
         else:
@@ -60,36 +67,28 @@ class InteractiveSession:
         Callback when layout setup is complete.
         Seamlessly transitions from layout mode to solver mode in the same window.
         """
-        print("[DEBUG] Layout done callback triggered")
-        
         # Finalize layout but keep window open
         self.visualizer._finalize_interactive_mode(keep_window_open=True)
-        print("[DEBUG] Layout finalized, window kept open")
         
         # Redraw without recreating figure
         if self.visualizer._fig:
-            print("[DEBUG] Figure exists, redrawing")
             # Configure axes (legend and sidebar backgrounds)
             self.visualizer._configure_axes()
             # Redraw all content and recalculate limits
             self.visualizer._quick_redraw(preserve_limits=False)
         
         # Create navigation buttons
-        print("[DEBUG] Creating navigation buttons")
         self._create_navigation_buttons()
         
         # Print instructions
-        self.logger.print_instructions()
+        self.logger.log_instructions()
         
         # Update window title
         self.visualizer.set_window_title("Transport Problem Solver - Interactive Mode")
         
         # Redraw the canvas
         if self.visualizer._fig:
-            print("[DEBUG] Redrawing canvas")
             self.visualizer._fig.canvas.draw_idle()
-        
-        print("[DEBUG] Transition complete")
     
     def _setup_solver_session(self) -> None:
         """Setup interactive solver session with buttons."""
@@ -132,7 +131,11 @@ class InteractiveSession:
         self._btn_reset = Button(ax_reset, 'Reset', color='lightyellow', hovercolor='yellow')
         self._btn_reset.on_clicked(self._on_reset_click)
         
-        # Update button states
+        if self.show_console_in_sidebar:
+            ax_console = plt.axes([0.1 + 4*(button_width + spacing), button_y, button_width, button_height])
+            self._btn_toggle_console = Button(ax_console, 'Console', color='#FFE4B5', hovercolor='#FFD700')
+            self._btn_toggle_console.on_clicked(self._on_toggle_console_click)
+        
         self._update_button_states()
     
     def _update_button_states(self) -> None:
@@ -169,8 +172,14 @@ class InteractiveSession:
             # Show initial state (empty graph)
             self.visualizer.apply_solution_state(None)
             self.visualizer.set_window_title("Transport Problem Solver - Initial State")
+            # Show instructions again
+            self.logger.log_instructions()
         else:
-            # Show the state at current_step
+            # Replay the log FIRST (before visual update)
+            step_num = self.controller.current_step + 1
+            self.logger.replay_step_log(step_num)
+            
+            # Then show the state visually (this will trigger redraw but log is already set)
             self._show_current_state()
         
         self._update_button_states()
@@ -194,9 +203,7 @@ class InteractiveSession:
         if not self.controller.can_go_next():
             return
         
-        print("\n" + "="*70)
-        print("AUTOMATIC SOLUTION - EXECUTING ALL REMAINING STEPS")
-        print("="*70)
+        self.logger.log_solve_all_start()
         
         initial_step = self.controller.current_step
         
@@ -209,18 +216,15 @@ class InteractiveSession:
             if self.controller.is_solved():
                 break
         
-        print("\n" + "="*70)
-        print("AUTOMATIC SOLUTION COMPLETE")
-        print("="*70)
+        total_steps = self.controller.current_step - initial_step
+        self.logger.log_solve_all_complete(total_steps)
         
         self._show_current_state()
         self._update_button_states()
     
     def _on_reset_click(self, event) -> None:
         """Handle Reset button click."""
-        print("\n" + "="*70)
-        print("RESET - Restarting from beginning")
-        print("="*70)
+        self.logger.log_reset()
         
         # Reset controller
         self.controller.reset()
@@ -233,8 +237,25 @@ class InteractiveSession:
         
         # Update buttons
         self._update_button_states()
-        
-        print("State reset. Press 'Next >' to begin solving.")
+    
+    def _on_toggle_console_click(self, event) -> None:
+        """Handle Console toggle button click."""
+        if self.visualizer._sidebar_renderer:  # type: ignore
+            current_state = self.visualizer._sidebar_renderer.show_console_log  # type: ignore
+            self.visualizer._sidebar_renderer.set_show_console_log(not current_state)  # type: ignore
+            
+            # Redraw sidebar
+            state = self.controller.get_current_state()
+            self.visualizer._sidebar_renderer.draw_sidebar(state)  # type: ignore
+            
+            # Update button color
+            if self._btn_toggle_console:
+                color = '#90EE90' if not current_state else '#FFE4B5'
+                self._btn_toggle_console.ax.set_facecolor(color)
+            
+            # Trigger redraw
+            if self.visualizer.is_ready():
+                plt.gcf().canvas.draw_idle()
     
     def _show_current_state(self) -> None:
         """Show the current solver state visually."""

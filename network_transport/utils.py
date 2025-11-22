@@ -6,7 +6,8 @@ from .ui import InteractiveSession, LayoutContext
 def run_interactive_demo(
     graph: Graph,
     title: str,
-    info_printer: Optional[Callable[[Graph], None]] = None
+    info_printer: Optional[Callable[[Graph], None]] = None,
+    show_console_in_sidebar: bool = True
 ) -> None:
     """
     Run an interactive transport problem solver demonstration.
@@ -15,13 +16,15 @@ def run_interactive_demo(
         graph: The configured network graph to solve
         title: Title to display in console header
         info_printer: Optional function to print additional graph information
+        show_console_in_sidebar: If True, displays console output in the sidebar (toggleable)
     
     Example:
         >>> graph = create_my_network()
         >>> run_interactive_demo(
         ...     graph,
         ...     "My Transport Problem",
-        ...     info_printer=print_network_info
+        ...     info_printer=print_network_info,
+        ...     show_console_in_sidebar=True
         ... )
     """
     print("=" * 70)
@@ -41,6 +44,6 @@ def run_interactive_demo(
     
     layout = LayoutContext()
     
-    session = InteractiveSession(graph, layout)
+    session = InteractiveSession(graph, layout, show_console_in_sidebar=show_console_in_sidebar)
     
     session.setup_and_run()

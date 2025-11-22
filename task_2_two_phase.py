@@ -67,59 +67,14 @@ def print_phase_header(phase_num: int, title: str) -> None:
     print("=" * 70)
 
 
-def create_phase_info_printer(phase_num: int, phase_name: str):
-    """Create info printer function for sidebar."""
-    def info_printer(graph: Graph) -> None:
-        from network_transport.models.edge import EPSILON
-        
-        print(f"╔{'═' * 48}╗")
-        print(f"║ {'PHASE ' + str(phase_num) + ': ' + phase_name:^46} ║")
-        print(f"╠{'═' * 48}╣")
-        
-        # Network info
-        print(f"║ {'Network Structure':^46} ║")
-        print(f"╟{'─' * 48}╢")
-        print(f"║  Nodes: {len(graph.nodes):<39} ║")
-        print(f"║  Edges: {len(graph.edges):<39} ║")
-        
-        # Calculate supply/demand
-        total_supply = sum(n.balance for n in graph.nodes.values() if n.balance > EPSILON)
-        total_demand = -sum(n.balance for n in graph.nodes.values() if n.balance < -EPSILON)
-        
-        print(f"║  Supply: {total_supply:<38.0f} ║")
-        print(f"║  Demand: {total_demand:<38.0f} ║")
-        
-        # Phase-specific info
-        print(f"╟{'─' * 48}╢")
-        if phase_num == 1:
-            print(f"║ {'Objective':^46} ║")
-            print(f"╟{'─' * 48}╢")
-            print(f"║  Minimize artificial flow              ║")
-            print(f"║  Find feasible basis                   ║")
-        else:
-            print(f"║ {'Objective':^46} ║")
-            print(f"╟{'─' * 48}╢")
-            print(f"║  Minimize total transportation cost    ║")
-            print(f"║  Using feasible basis from Phase 1     ║")
-        
-        print(f"╚{'═' * 48}╝")
-    
-    return info_printer
-
-
 def run_phase(
     graph: Graph, 
     initialization_strategy: InitializationStrategy,
-    phase_name: str,
-    phase_num: int
+    phase_name: str
 ) -> SolverController:
     solver = TransportSolver(graph=graph, initialization_strategy=initialization_strategy)
     controller = SolverController(graph, solver=solver)
     layout = LayoutContext()
-    
-    # Create info printer for this phase
-    info_printer = create_phase_info_printer(phase_num, phase_name)
-    
     session = InteractiveSession(graph, layout, controller)
     
     print(f"\nStarting {phase_name}...")

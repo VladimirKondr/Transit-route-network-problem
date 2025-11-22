@@ -157,6 +157,30 @@ This demonstrates:
 - Extraction of feasible basis for the original problem
 - Optimization to minimum cost starting from feasible basis
 
+### Console Output in Sidebar
+
+Display algorithm output directly in the visualization sidebar:
+
+```python
+from network_transport import Graph, run_interactive_demo
+
+graph = create_my_network()
+
+run_interactive_demo(
+    graph,
+    title="My Transport Problem",
+    show_console_in_sidebar=True  # Enable console display in sidebar
+)
+```
+
+Features:
+- All solver steps and calculations displayed in sidebar
+- Toggle between console log and problem statistics using "Console" button
+- Complete step log with automatic text wrapping (55 char width)
+- Each step replaces previous in sidebar (no accumulation)
+- Centralized logging: all output (steps, instructions, system messages) handled by `SolutionLogger`
+- Useful for understanding algorithm decisions without terminal access
+
 ## Examples
 
 Three demonstration problems are included:
