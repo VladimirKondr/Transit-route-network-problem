@@ -1,6 +1,6 @@
 from typing import Optional, Set, Tuple, List, Dict
 
-from network_transport.solver.utils import SolutionState
+from network_transport.solver.utils import SolutionState, VamState
 
 from ...models.graph import Graph
 from ...models.edge import EPSILON
@@ -63,14 +63,14 @@ class BasisRebuilder:
             if dsu.union(from_node, to_node):
                 basis.add(candidate_edge_id)
         
-        for edge_id in partial_basis:
+        for edge_id in sorted(partial_basis):
             try_add_candidate(edge_id)
         
         if len(basis) < required_size:
-            candidate_edges = [
+            candidate_edges = sorted([
                 edge_id for edge_id in graph.edges.keys()
                 if edge_id not in basis and flows.get(edge_id, 0.0) > EPSILON
-            ]
+            ])
             
             for edge_id in candidate_edges:
                 if len(basis) >= required_size:
@@ -78,7 +78,7 @@ class BasisRebuilder:
                 try_add_candidate(edge_id)
         
         if len(basis) < required_size:
-            for edge_id in graph.edges.keys():
+            for edge_id in sorted(graph.edges.keys()):
                 if len(basis) >= required_size:
                     break
                 if edge_id not in basis:
@@ -330,3 +330,140 @@ class NorthwestCornerInitializer(InitializationStrategy):
             non_basis_edges=non_basis_edges,
             flows=flows
         )
+
+
+
+
+class DualPriorityInitializer(InitializationStrategy):
+    """Initializes a basis using the Dual-Priority method (Vogel's Approximation). """
+
+    def execute(self, graph: Graph) -> BasisResult:
+        """
+        1. Initializes the state for the algorithm.
+        2. Iteratively finds and fills the best edge based on cost penalties.
+        3. Finalizes the basis and returns the result.
+        """
+        state: VamState = self._initialize_vam_state(graph)
+
+        while state.active_supply and state.active_demand:
+            best_edge = self._find_best_edge_to_fill(graph, state)
+
+            if not best_edge:
+                break
+            
+            self._apply_flow_and_update_state(best_edge, state)
+        
+        basis_edges = BasisRebuilder.rebuild_basis(graph, state.partial_basis, state.flows)
+        all_edges = set(graph.edges.keys())
+        non_basis_edges = all_edges - basis_edges
+
+        return BasisResult(
+            basis_edges=basis_edges,
+            non_basis_edges=non_basis_edges,
+            flows=state.flows
+        )
+
+    def _initialize_vam_state(self, graph: Graph) -> VamState:
+        active_supply = {
+            n_id for n_id, n in graph.nodes.items() if n.balance > EPSILON
+        }
+        active_demand = {
+            n_id for n_id, n in graph.nodes.items() if n.balance < -EPSILON
+        }
+        
+        return VamState(
+            flows={edge_id: 0.0 for edge_id in graph.edges},
+            partial_basis=set(),
+            active_supply=active_supply,
+            active_demand=active_demand,
+            current_supply={
+                n_id: graph.nodes[n_id].balance for n_id in active_supply
+            },
+            current_demand={
+                n_id: -graph.nodes[n_id].balance for n_id in active_demand
+            }
+        )
+
+    def _find_best_edge_to_fill(
+        self, graph: Graph, state: VamState
+    ) -> Optional[Tuple[str, str]]:
+        """
+        Calculates penalties and determines the best edge to allocate flow to.
+
+        Returns:
+            (from_node, to_node) tuple for the edge or None.
+        """
+        supply_penalties = self._calculate_penalties(
+            graph, state.active_supply, state.active_demand, is_supply=True
+        )
+        demand_penalties = self._calculate_penalties(
+            graph, state.active_demand, state.active_supply, is_supply=False
+        )
+
+        s_node, max_s_penalty = max(supply_penalties.items(), key=lambda i: i[1], default=(None, -1.0))
+        d_node, max_d_penalty = max(demand_penalties.items(), key=lambda i: i[1], default=(None, -1.0))
+
+        if s_node is None and d_node is None:
+            return None
+
+        if max_s_penalty >= max_d_penalty and s_node is not None:
+            u = s_node
+            cheapest_edges = sorted(
+                (graph.edges[(u, v)].cost, v)
+                for v in state.active_demand if (u, v) in graph.edges
+            )
+            if not cheapest_edges:
+                state.active_supply.remove(u)
+                return None
+                
+            v = cheapest_edges[0][1]
+            return u, v
+
+        elif d_node is not None:
+            v = d_node
+            cheapest_edges = sorted(
+                (graph.edges[(u, v)].cost, u)
+                for u in state.active_supply if (u, v) in graph.edges
+            )
+            if not cheapest_edges:
+                state.active_demand.remove(v)
+                return None
+
+            u = cheapest_edges[0][1]
+            return u, v
+        
+        return None
+
+    def _apply_flow_and_update_state(
+        self, edge_id: Tuple[str, str], state: VamState
+    ) -> None:
+        u, v = edge_id
+        
+        flow = min(state.current_supply[u], state.current_demand[v])
+        state.flows[edge_id] = flow
+        state.partial_basis.add(edge_id)
+
+        state.current_supply[u] -= flow
+        state.current_demand[v] -= flow
+
+        if state.current_supply[u] < EPSILON:
+            state.active_supply.remove(u)
+        if state.current_demand[v] < EPSILON:
+            state.active_demand.remove(v)
+            
+    def _calculate_penalties(self, graph: Graph, source_nodes: Set[str], target_nodes: Set[str], is_supply: bool) -> Dict[str, float]:
+        penalties: Dict[str, float] = {}
+        for source_node in source_nodes:
+            costs: List[float] = []
+            for target_node in target_nodes:
+                edge_id = (source_node, target_node) if is_supply else (target_node, source_node)
+                if edge_id in graph.edges:
+                    costs.append(graph.edges[edge_id].cost)
+            
+            costs.sort()
+            
+            if len(costs) >= 2:
+                penalties[source_node] = costs[1] - costs[0]
+            elif len(costs) == 1:
+                penalties[source_node] = costs[0]
+        return penalties

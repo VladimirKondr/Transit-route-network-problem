@@ -69,3 +69,12 @@ class SolutionState:
     theta: Optional[float] = None
     description: str = ""
     objective_value: float = 0.0
+
+@dataclass(slots=True, frozen=True)
+class VamState:
+    flows: Dict[Tuple[str, str], float]
+    partial_basis: Set[Tuple[str, str]]
+    active_supply: Set[str]
+    active_demand: Set[str]
+    current_supply: Dict[str, float]
+    current_demand: Dict[str, float]
