@@ -12,7 +12,7 @@ def create_graph_from_matrix(
     costs: List[List[float]], 
     supplies: List[float], 
     demands: List[float],
-    capacities: List[List[float]]
+    capacities: Optional[List[List[float]]]
 ) -> Graph:
     graph = Graph()
     num_suppliers = len(supplies)
@@ -29,7 +29,11 @@ def create_graph_from_matrix(
         graph.add_node(f"B{j+1}", balance=-demands[j])
     for i in range(num_suppliers):
         for j in range(num_consumers):
-            graph.add_edge(f"A{i+1}", f"B{j+1}", cost=costs[i][j], capacity=capacities[i][j])
+            if capacities is not None:
+                graph.add_edge(f"A{i+1}", f"B{j+1}", cost=costs[i][j], capacity=capacities[i][j])
+            else :
+                graph.add_edge(f"A{i+1}", f"B{j+1}", cost=costs[i][j])
+
             
     return graph
 
@@ -206,12 +210,13 @@ if __name__ == "__main__":
     A: List[float] = [10, 10, 8, 11]
     B: List[float] = [12, 5, 8, 6, 8]
 
-    D: List[List[float]] = [
+    D: Optional[List[List[float]]] = [
         [14, 11, 16, 18, 14],
         [15, 24, 13, 15, 16],
         [15, 15, 14, 14, 19],
         [16, 14, 14, 13, 16]
-    ]
+    ] # make None if there are no upper bounds
+    D = None
 
     try:
         transport_graph = create_graph_from_matrix(costs=C, supplies=A, demands=B, capacities=D)
