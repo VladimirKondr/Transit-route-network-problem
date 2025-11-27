@@ -277,3 +277,115 @@ class PhaseOneInitializer(InitializationStrategy):
             )
         
         return basis
+
+
+class NorthwestCornerInitializer(InitializationStrategy):
+    """Initializes a basis using the Northwest Corner rule."""
+
+    def execute(self, graph: Graph) -> BasisResult:
+        flows: Dict[Tuple[str, str], float] = {edge_id: 0.0 for edge_id in graph.edges}
+        partial_basis: Set[Tuple[str, str]] = set()
+
+        supply_nodes = sorted([node_id for node_id, node in graph.nodes.items() if node.balance > EPSILON])
+        demand_nodes = sorted([node_id for node_id, node in graph.nodes.items() if node.balance < -EPSILON])
+
+        current_supply = {node_id: graph.nodes[node_id].balance for node_id in supply_nodes}
+        current_demand = {node_id: -graph.nodes[node_id].balance for node_id in demand_nodes}
+
+        i, j = 0, 0
+        while i < len(supply_nodes) and j < len(demand_nodes):
+            u = supply_nodes[i]
+            v = demand_nodes[j]
+            edge_id = (u, v)
+
+            if edge_id not in graph.edges:
+                raise ValueError(
+                    f"Northwest Corner method requires a complete bipartite graph structure. "
+                    f"Edge {edge_id} does not exist."
+                )
+
+            flow = min(current_supply[u], current_demand[v])
+            
+            flows[edge_id] = flow
+            partial_basis.add(edge_id)
+            
+            current_supply[u] -= flow
+            current_demand[v] -= flow
+
+            if current_supply[u] < EPSILON:
+                i += 1
+            if current_demand[v] < EPSILON:
+                j += 1
+        
+        basis_edges = self._rebuild_basis(graph, partial_basis, flows)
+        
+        all_edges = set(graph.edges.keys())
+        non_basis_edges = all_edges - basis_edges
+        
+        return BasisResult(
+            basis_edges=basis_edges,
+            non_basis_edges=non_basis_edges,
+            flows=flows
+        )
+
+    def _rebuild_basis(
+        self, 
+        graph: Graph, 
+        partial_basis: Set[Tuple[str, str]], 
+        flows: Dict[Tuple[str, str], float]
+    ) -> Set[Tuple[str, str]]:
+        """
+        Rebuild a complete spanning tree basis from a partial basis.
+        
+        If the partial basis doesn't form a complete spanning tree,
+        add edges from the graph until we have a valid tree structure.
+        
+        Args:
+            graph: Original graph
+            partial_basis: Partial set of basis edges
+            flows: Current flow values
+            
+        Returns:
+            Complete spanning tree basis
+        """
+        num_nodes = len(graph.nodes)
+        required_size = num_nodes - 1
+
+        node_ids = list(graph.nodes.keys())
+        dsu = DisjointSet(node_ids)
+        basis: Set[Tuple[str, str]] = set()
+
+        def try_add_candidate(candidate_edge_id: Tuple[str, str]) -> None:
+            from_node, to_node = candidate_edge_id
+            if dsu.union(from_node, to_node):
+                basis.add(candidate_edge_id)
+        
+        for edge_id in partial_basis:
+            try_add_candidate(edge_id)
+        
+        if len(basis) < required_size:
+            candidate_edges = sorted([
+                edge_id for edge_id in graph.edges.keys()
+                if edge_id not in basis and flows.get(edge_id, 0.0) > EPSILON
+            ])
+            
+            for edge_id in sorted(candidate_edges):
+                if len(basis) >= required_size:
+                    break
+                try_add_candidate(edge_id)
+        
+        if len(basis) < required_size:
+            for edge_id in sorted(graph.edges.keys()):
+                if len(basis) >= required_size:
+                    break
+                if edge_id not in basis:
+                    try_add_candidate(edge_id)
+        
+        if len(basis) < required_size:
+            raise ValueError(
+                "Original graph is not connected. Cannot build a spanning tree basis. "
+                f"Found {len(basis)} edges, required {required_size}."
+            )
+        
+        return basis
+    

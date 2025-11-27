@@ -6,13 +6,16 @@ from matplotlib.widgets import Button
 
 from network_transport.models import Graph
 from network_transport.solver import SolverController, SolutionState
+from network_transport.solver.solver_base import TransportSolverBase
+from network_transport.solver.strategies.initialization import NorthwestCornerInitializer
+from network_transport.solver.transport_solver import TransportSolver
 from network_transport.ui import InteractiveSession
 
 def create_graph_from_matrix(
     costs: List[List[float]], 
     supplies: List[float], 
     demands: List[float],
-    capacities: Optional[List[List[float]]]
+    capacities: Optional[List[List[float]]] = None
 ) -> Graph:
     graph = Graph()
     num_suppliers = len(supplies)
@@ -171,8 +174,8 @@ class MatrixVisualizer:
         if self._fig: self._fig.canvas.manager.set_window_title(title) # type: ignore
 
 class MatrixInteractiveSession(InteractiveSession):
-    def __init__(self, graph: Graph, costs: List[List[float]], supplies: List[float], demands: List[float]):
-        super().__init__(graph=graph, controller=SolverController(graph))
+    def __init__(self, graph: Graph, costs: List[List[float]], supplies: List[float], demands: List[float], solver: Optional[TransportSolverBase] = None):
+        super().__init__(graph=graph, controller=SolverController(graph, solver=solver))
         self.matrix_visualizer = MatrixVisualizer(graph, costs, supplies, demands)
         self.visualizer = self.matrix_visualizer
 
@@ -219,11 +222,13 @@ if __name__ == "__main__":
 
     try:
         transport_graph = create_graph_from_matrix(costs=C, supplies=A, demands=B, capacities=D)
+        solver: Optional[TransportSolverBase] = TransportSolver(graph=transport_graph, initialization_strategy=NorthwestCornerInitializer()) # or None
         session = MatrixInteractiveSession(
             graph=transport_graph,
             costs=C,
             supplies=A,
-            demands=B
+            demands=B,
+            solver=solver
         )
         session.setup_and_run()
     except ValueError as e:
