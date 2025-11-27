@@ -29,6 +29,68 @@ class DisjointSet:
         
         self.parent[root_x] = root_y
         return True
+    
+class BasisRebuilder:
+    @staticmethod
+    def rebuild_basis(
+        graph: Graph, 
+        partial_basis: Set[Tuple[str, str]], 
+        flows: Dict[Tuple[str, str], float]
+    ) -> Set[Tuple[str, str]]:
+        """
+        Rebuild a complete spanning tree basis from a partial basis.
+        
+        If the partial basis doesn't form a complete spanning tree,
+        add edges from the graph until we have a valid tree structure.
+        
+        Args:
+            graph: Original graph
+            partial_basis: Partial set of basis edges
+            flows: Current flow values
+            
+        Returns:
+            Complete spanning tree basis
+        """
+        num_nodes = len(graph.nodes)
+        required_size = num_nodes - 1
+
+        node_ids = list(graph.nodes.keys())
+        dsu = DisjointSet(node_ids)
+        basis: Set[Tuple[str, str]] = set()
+
+        def try_add_candidate(candidate_edge_id: Tuple[str, str]) -> None:
+            from_node, to_node = candidate_edge_id
+            if dsu.union(from_node, to_node):
+                basis.add(candidate_edge_id)
+        
+        for edge_id in partial_basis:
+            try_add_candidate(edge_id)
+        
+        if len(basis) < required_size:
+            candidate_edges = [
+                edge_id for edge_id in graph.edges.keys()
+                if edge_id not in basis and flows.get(edge_id, 0.0) > EPSILON
+            ]
+            
+            for edge_id in candidate_edges:
+                if len(basis) >= required_size:
+                    break
+                try_add_candidate(edge_id)
+        
+        if len(basis) < required_size:
+            for edge_id in graph.edges.keys():
+                if len(basis) >= required_size:
+                    break
+                if edge_id not in basis:
+                    try_add_candidate(edge_id)
+        
+        if len(basis) < required_size:
+            raise ValueError(
+                "Original graph is not connected. Cannot build a spanning tree basis. "
+                f"Found {len(basis)} edges, required {required_size}."
+            )
+        
+        return basis
 
 class PrebuiltInitializer(InitializationStrategy):
     """Mock-initializer for setting a constant initial basis"""
@@ -207,7 +269,7 @@ class PhaseOneInitializer(InitializationStrategy):
                 if self.ROOT_NODE_ID not in edge_id:
                     basis_edges.add(edge_id)
         
-        basis_edges = self._rebuild_basis(graph, basis_edges, flows)
+        basis_edges = BasisRebuilder.rebuild_basis(graph, basis_edges, flows)
         
         non_basis_edges = original_edges - basis_edges
         
@@ -217,66 +279,7 @@ class PhaseOneInitializer(InitializationStrategy):
             flows=flows
         )
     
-    def _rebuild_basis(
-        self, 
-        graph: Graph, 
-        partial_basis: Set[Tuple[str, str]], 
-        flows: Dict[Tuple[str, str], float]
-    ) -> Set[Tuple[str, str]]:
-        """
-        Rebuild a complete spanning tree basis from a partial basis.
-        
-        If the partial basis doesn't form a complete spanning tree,
-        add edges from the graph until we have a valid tree structure.
-        
-        Args:
-            graph: Original graph
-            partial_basis: Partial set of basis edges
-            flows: Current flow values
-            
-        Returns:
-            Complete spanning tree basis
-        """
-        num_nodes = len(graph.nodes)
-        required_size = num_nodes - 1
-
-        node_ids = list(graph.nodes.keys())
-        dsu = DisjointSet(node_ids)
-        basis: Set[Tuple[str, str]] = set()
-
-        def try_add_candidate(candidate_edge_id: Tuple[str, str]) -> None:
-            from_node, to_node = candidate_edge_id
-            if dsu.union(from_node, to_node):
-                basis.add(candidate_edge_id)
-        
-        for edge_id in partial_basis:
-            try_add_candidate(edge_id)
-        
-        if len(basis) < required_size:
-            candidate_edges = [
-                edge_id for edge_id in graph.edges.keys()
-                if edge_id not in basis and flows.get(edge_id, 0.0) > EPSILON
-            ]
-            
-            for edge_id in candidate_edges:
-                if len(basis) >= required_size:
-                    break
-                try_add_candidate(edge_id)
-        
-        if len(basis) < required_size:
-            for edge_id in graph.edges.keys():
-                if len(basis) >= required_size:
-                    break
-                if edge_id not in basis:
-                    try_add_candidate(edge_id)
-        
-        if len(basis) < required_size:
-            raise ValueError(
-                "Original graph is not connected. Cannot build a spanning tree basis. "
-                f"Found {len(basis)} edges, required {required_size}."
-            )
-        
-        return basis
+    
 
 
 class NorthwestCornerInitializer(InitializationStrategy):
@@ -317,7 +320,7 @@ class NorthwestCornerInitializer(InitializationStrategy):
             if current_demand[v] < EPSILON:
                 j += 1
         
-        basis_edges = self._rebuild_basis(graph, partial_basis, flows)
+        basis_edges = BasisRebuilder.rebuild_basis(graph, partial_basis, flows)
         
         all_edges = set(graph.edges.keys())
         non_basis_edges = all_edges - basis_edges
@@ -327,65 +330,3 @@ class NorthwestCornerInitializer(InitializationStrategy):
             non_basis_edges=non_basis_edges,
             flows=flows
         )
-
-    def _rebuild_basis(
-        self, 
-        graph: Graph, 
-        partial_basis: Set[Tuple[str, str]], 
-        flows: Dict[Tuple[str, str], float]
-    ) -> Set[Tuple[str, str]]:
-        """
-        Rebuild a complete spanning tree basis from a partial basis.
-        
-        If the partial basis doesn't form a complete spanning tree,
-        add edges from the graph until we have a valid tree structure.
-        
-        Args:
-            graph: Original graph
-            partial_basis: Partial set of basis edges
-            flows: Current flow values
-            
-        Returns:
-            Complete spanning tree basis
-        """
-        num_nodes = len(graph.nodes)
-        required_size = num_nodes - 1
-
-        node_ids = list(graph.nodes.keys())
-        dsu = DisjointSet(node_ids)
-        basis: Set[Tuple[str, str]] = set()
-
-        def try_add_candidate(candidate_edge_id: Tuple[str, str]) -> None:
-            from_node, to_node = candidate_edge_id
-            if dsu.union(from_node, to_node):
-                basis.add(candidate_edge_id)
-        
-        for edge_id in partial_basis:
-            try_add_candidate(edge_id)
-        
-        if len(basis) < required_size:
-            candidate_edges = sorted([
-                edge_id for edge_id in graph.edges.keys()
-                if edge_id not in basis and flows.get(edge_id, 0.0) > EPSILON
-            ])
-            
-            for edge_id in sorted(candidate_edges):
-                if len(basis) >= required_size:
-                    break
-                try_add_candidate(edge_id)
-        
-        if len(basis) < required_size:
-            for edge_id in sorted(graph.edges.keys()):
-                if len(basis) >= required_size:
-                    break
-                if edge_id not in basis:
-                    try_add_candidate(edge_id)
-        
-        if len(basis) < required_size:
-            raise ValueError(
-                "Original graph is not connected. Cannot build a spanning tree basis. "
-                f"Found {len(basis)} edges, required {required_size}."
-            )
-        
-        return basis
-    
