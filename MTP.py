@@ -216,7 +216,6 @@ if __name__ == "__main__":
         [15, 15, 14, 14, 19],
         [16, 14, 14, 13, 16]
     ] # make None if there are no upper bounds
-    D = None
 
     try:
         transport_graph = create_graph_from_matrix(costs=C, supplies=A, demands=B, capacities=D)
