@@ -11,7 +11,8 @@ from network_transport.ui import InteractiveSession
 def create_graph_from_matrix(
     costs: List[List[float]], 
     supplies: List[float], 
-    demands: List[float]
+    demands: List[float],
+    capacities: List[List[float]]
 ) -> Graph:
     graph = Graph()
     num_suppliers = len(supplies)
@@ -28,7 +29,7 @@ def create_graph_from_matrix(
         graph.add_node(f"B{j+1}", balance=-demands[j])
     for i in range(num_suppliers):
         for j in range(num_consumers):
-            graph.add_edge(f"A{i+1}", f"B{j+1}", cost=costs[i][j])
+            graph.add_edge(f"A{i+1}", f"B{j+1}", cost=costs[i][j], capacity=capacities[i][j])
             
     return graph
 
@@ -198,15 +199,22 @@ class MatrixInteractiveSession(InteractiveSession):
 if __name__ == "__main__":
     C: List[List[float]] = [
     [10 , 3 , 8 , 11 , 2],
-     [ 8 , 7 , 6 , 10 , 5],
-     [11 , 10 , 12 , 9 , 10],
-     [ 12 , 14 , 10 , 14 , 8]
+    [ 8 , 7 , 6 , 10 , 5],
+    [11 , 10 , 12 , 9 , 10],
+    [ 12 , 14 , 10 , 14 , 8]
     ]
     A: List[float] = [10, 10, 8, 11]
     B: List[float] = [12, 5, 8, 6, 8]
 
+    D: List[List[float]] = [
+        [14, 11, 16, 18, 14],
+        [15, 24, 13, 15, 16],
+        [15, 15, 14, 14, 19],
+        [16, 14, 14, 13, 16]
+    ]
+
     try:
-        transport_graph = create_graph_from_matrix(costs=C, supplies=A, demands=B)
+        transport_graph = create_graph_from_matrix(costs=C, supplies=A, demands=B, capacities=D)
         session = MatrixInteractiveSession(
             graph=transport_graph,
             costs=C,
