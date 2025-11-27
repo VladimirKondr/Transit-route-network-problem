@@ -5,11 +5,13 @@ from matplotlib.patches import Rectangle
 from matplotlib.widgets import Button
 
 from network_transport.models import Graph
+from network_transport.models.edge import EPSILON
 from network_transport.solver import SolverController, SolutionState
 from network_transport.solver.solver_base import TransportSolverBase
-from network_transport.solver.strategies.initialization import NorthwestCornerInitializer
+from network_transport.solver.strategies.initialization import DualPriorityInitializer, NorthwestCornerInitializer, PhaseOneInitializer
 from network_transport.solver.transport_solver import TransportSolver
 from network_transport.ui import InteractiveSession
+
 
 def create_graph_from_matrix(
     costs: List[List[float]], 
@@ -40,6 +42,7 @@ def create_graph_from_matrix(
             
     return graph
 
+
 class MatrixVisualizer:
     def __init__(self, graph: Graph, costs: List[List[float]], supplies: List[float], demands: List[float]):
         self.graph = graph
@@ -48,6 +51,8 @@ class MatrixVisualizer:
         self.demands = demands
         self.num_suppliers = len(supplies)
         self.num_consumers = len(demands)
+        self.supply_names = sorted([node[0] for node in sorted(graph.nodes.items()) if node[1].balance > EPSILON])
+        self.demand_names = sorted([node[0] for node in sorted(graph.nodes.items()) if node[1].balance < -EPSILON])
         
         self._fig, self.ax = None, None
         self.cell_artists: List[Any] = []
@@ -76,11 +81,11 @@ class MatrixVisualizer:
         ax = self.ax # type: ignore
 
         for j in range(self.num_consumers): 
-            ax.text(j + 1.5, 0.5, f"B{j+1}", ha='center', va='center', fontweight='bold') # type: ignore
+            ax.text(j + 1.5, 0.5, self.demand_names[j], ha='center', va='center', fontweight='bold') # type: ignore
 
         ax.text(self.num_consumers + 1.5, 0.5, "Запасы", ha='center', va='center', fontweight='bold') # type: ignore
         for i in range(self.num_suppliers): 
-            ax.text(0.5, i + 1.5, f"A{i+1}", ha='center', va='center', fontweight='bold') # type: ignore
+            ax.text(0.5, i + 1.5, self.supply_names[i], ha='center', va='center', fontweight='bold') # type: ignore
 
         for i, supply in enumerate(self.supplies): 
             ax.text(self.num_consumers + 1.5, i + 1.5, f"{supply:.0f}", ha='center', va='center', color='blue', fontsize=14) # type: ignore
@@ -116,7 +121,7 @@ class MatrixVisualizer:
         ax = self.ax # type: ignore
         for i in range(self.num_suppliers):
             for j in range(self.num_consumers):
-                edge_id = (f"A{i+1}", f"B{j+1}")
+                edge_id = (self.supply_names[i], self.demand_names[j])
                 edge = self.graph.get_edge(*edge_id)
                 if not edge: 
                     continue
@@ -148,7 +153,7 @@ class MatrixVisualizer:
                     self.cell_artists.append(sign_artist)
         if state.potentials:
             for i in range(self.num_suppliers):
-                node_id = f"A{i+1}"
+                node_id = self.supply_names[i]
                 potential = state.potentials.get(node_id)
                 if potential is not None:
                     p_artist = ax.text(self.num_consumers + 2.5, i + 1.5, f"{potential:.1f}", # type: ignore
@@ -157,7 +162,7 @@ class MatrixVisualizer:
                     self.cell_artists.append(p_artist)
 
             for j in range(self.num_consumers):
-                node_id = f"B{j+1}"
+                node_id = self.demand_names[j]
                 potential = state.potentials.get(node_id)
                 if potential is not None:
                     p_artist = ax.text(j + 1.5, self.num_suppliers + 2.5, f"{potential:.1f}", # type: ignore
@@ -205,10 +210,10 @@ class MatrixInteractiveSession(InteractiveSession):
 
 if __name__ == "__main__":
     C: List[List[float]] = [
-    [10 , 3 , 8 , 11 , 2],
-    [ 8 , 7 , 6 , 10 , 5],
-    [11 , 10 , 12 , 9 , 10],
-    [ 12 , 14 , 10 , 14 , 8]
+        [10, 3, 8, 11, 2],
+        [8, 7, 6, 10, 5],
+        [11, 10, 12, 9, 10],
+        [12, 14, 10, 14, 8]
     ]
     A: List[float] = [10, 10, 8, 11]
     B: List[float] = [12, 5, 8, 6, 8]
